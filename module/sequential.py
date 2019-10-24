@@ -301,9 +301,9 @@ class Sequential(Module):
         
         return class_loss
     
-    def forward(self, input, labels, lambda_value, target_layer = None, LRP_ori=None):
+    def forward(self, inputs, labels, lambda_value, target_layer = None, LRP_ori=None):
         # classic forward
-        activation_output = input
+        activation_output = inputs
         for module in self._modules.values():
             activation_output = module.forward(activation_output)
         
@@ -313,27 +313,11 @@ class Sequential(Module):
         diff = criterion(activation_output, labels)
         
         class_loss = torch.mean(diff)
+        
+        LRP = self.interpretation(activation_output, interpreter=args.interpreter, labels=labels, target_layer = args.lrp_target_layer, inputs=inputs)
             
-        if args.interpreter == 'lrp':
-            LRP = self.lrp(activation_output, labels=labels, lrp_var=args.r_method, param=1e-8, whichScore=None, target_layer = args.lrp_target_layer)
-            
-        elif args.interpreter == 'grad_cam':
-            LRP = self.grad_cam(activation_output, labels, args.lrp_target_layer)
-
-        elif args.interpreter == 'simple_grad':
-            LRP = self.simple_grad(activation_output, labels, args.lrp_target_layer)
-
-        elif args.interpreter == 'smooth_grad':
-            LRP = self.smooth_grad(self, input, labels, args.lrp_target_layer)
-
-        elif args.interpreter == 'integrated_grad':
-            LRP = self.integrated_grad(self, input, labels, args.lrp_target_layer)
-        else:
-            print('wrong interpreter!!',tt)
-
         if len(LRP.shape) != 4:
             LRP = LRP.unsqueeze(1)
-
         LRP = LRP.sum(dim=1, keepdim=True)
         
         
@@ -377,11 +361,17 @@ class Sequential(Module):
         elif interpreter == 'simple_grad_T':
             LRP = self.simple_grad(activation_output, labels, target_layer)
             
-        elif interpreter in ['smooth_grad', 'integrated_grad']:
+        elif interpreter == 'smooth_grad':
             LRP = self.smooth_grad(self, inputs, labels, None)
 
-        elif interpreter in ['smooth_grad_T', 'integrated_grad_T']:
+        elif interpreter == 'smooth_grad_T':
             LRP = self.smooth_grad(self, inputs, labels, target_layer)
+    
+        elif interpreter == 'integrated_grad':
+            LRP = self.integrated_grad(self, inputs, labels, None)
+
+        elif interpreter == 'integrated_grad_T':
+            LRP = self.integrated_grad(self, inputs, labels, target_layer)
 
         else:
             print('wrong interpreter!!',tt)

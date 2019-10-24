@@ -19,7 +19,7 @@ def get_args():
                         help='The name of model to be used in experiment')
     
     parser.add_argument('--interpreter', type=str, default='lrp', 
-                        choices=['lrp', 'grad_cam', 'simple_grad', 'smooth_grad', 'integrated_grad'], 
+                        choices=['lrp', 'lrp_T', 'grad_cam', 'simple_grad', 'simple_grad_T', 'smooth_grad', 'smooth_grad_T', 'integrated_grad', 'integrated_grad_T'], 
                         help='The interpreter for fooling loss')
 
     parser.add_argument('--loss_type', type=str, default='uniformR', choices=['frame', 'topk', 'center_mass'], 
@@ -105,13 +105,6 @@ def get_args():
     parser.add_argument('--epochs', type=int, default=5,
                         help='Number of epoch. Warning: The number of iteration will be args.num_eval * args.eval_period.')
     
-    
-    
-    
-    
-    #### 1. Model ####
-    parser.add_argument('--pretrained_path_num', type=int, default=None,
-                        help='number of path of pretrained model')
 
     
 
