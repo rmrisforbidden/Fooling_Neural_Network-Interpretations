@@ -1,5 +1,5 @@
-# Fooling_Neural_Network_Interpretations
-This code is an implementation of the paper "Fooling Neural Network Interpretations via Adversarial Model Manipulation".
+# Fooling Neural Network Interpretations via Adversarial Model Manipulation
+This code is an implementation of "Fooling Neural Network Interpretations via Adversarial Model Manipulation".
 
 # Materials
 
