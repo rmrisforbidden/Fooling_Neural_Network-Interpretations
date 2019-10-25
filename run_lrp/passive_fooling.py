@@ -20,14 +20,11 @@ import torch.optim as optim
 sys.path.append("..")
 
 import module.render as render
-from module.model_VGG19 import model as model
-from module.model_Resnet import resnet18, resnet34, resnet50, resnet101
-from module.model_Densenet import densenet121 as model_densenet
 from module.load_model import load_model
 from module.dataloader import dataloader
 from module.arguments import get_args
 
-from module.utils import logger, test_accuracy, pixel_flipping, visualize5
+from module.utils import logger, test_accuracy, visualize5
 
 import time
 
@@ -43,7 +40,6 @@ except OSError:
 def init_weights(m):
         m.reset_parameters()
         
-
 def main():
     print('--------------------Preparing Training------------------------')
     # 1. load dataloader
@@ -82,6 +78,7 @@ def main():
     loss_c_tr_list = []
     loss_r_tr_list = []
     loss_t_tr_list = []
+    
     test_acc1_list=[]
     test_acc5_list=[]
     

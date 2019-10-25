@@ -20,236 +20,48 @@ args = get_args()
 
 import subprocess
 
-def pixel_flipping(net, R, input, labels, num_grid = (1,1,14,14)):
-    result = []
-    input = input.clone()
+
+def norm_mse(R, R_):
+    n=R.shape[0]
+    R = R.reshape(n,-1)
+    R_ = R_.reshape(n,-1)
+    return ((R - R_)**2 ).mean(axis=1)
+
+
+def target_quanti(interpreter, R_ori, R):
+    rcorr_sign = []
+    rcorr_rank = []
+
+    if len(R.shape) == 4:
+        R = R.sum(axis=1)
+        R_ori = R_ori.sum(axis=1)
+
+    rank_corr_sign = quanti_metric(R_ori, R, interpreter, keep_batch=True)
+    mse = norm_mse(R, R_ori)
     
-    grid_size = input.shape[2] // num_grid[2]
-    if R.shape[2] != num_grid[2]:
-        R = torch.tensor(R)
-        R = R.sum(dim=1, keepdim=True)
-        R = F.avg_pool2d(torch.tensor(R), (grid_size, grid_size))
-        R = R.cpu().detach().numpy()
-        
-    # we multiply -1 to R, because argsort is increasing order.
-    R_fl = - R.flatten()
+    return rank_corr_sign, mse
+
+def quanti_metric(R_ori, R, interpreter, keep_batch = False):
+    R_shape = R.shape
+    l = R.shape[2]
+    R_ori_f = torch.tensor(R_ori.reshape(R.shape[0],-1), dtype=torch.float32).cuda()
+    R_f = torch.tensor(R.reshape(R.shape[0],-1), dtype=torch.float32).cuda()
+    corr_list = []
     
-    
-    activation_output = net.prediction(input.cuda())
-    softmax = F.softmax(activation_output)
-    result.append(softmax[:,labels].item())
-    
-    input_unfolded = F.unfold(input, (grid_size, grid_size), stride=grid_size)
-    
-    for index in R_fl.argsort()[:100]:
-        input_unfolded[:,:,index] = 0
-        input_folded = F.fold(input_unfolded, input.shape[2:], (grid_size, grid_size), stride=grid_size)
+    for i in range(R.shape[0]):
+        corr = 0
+        mask_ori = ((abs(R_ori_f[i]) - abs(R_ori_f[i]).mean())/abs(R_ori_f[i]).std()) > 1
+        R_ori_f_sign = torch.tensor(mask_ori, dtype=torch.float32).cuda() * torch.sign(R_ori_f[i])
+
+        mask_ = ((abs(R_f[i]) - abs(R_f[i]).mean())/abs(R_f[i]).std()) > 1
+        R_f_sign = torch.tensor(mask_, dtype=torch.float32).cuda() * torch.sign(R_f[i])
+        corr = np.corrcoef(R_ori_f_sign.detach().cpu().numpy(), R_f_sign.detach().cpu().numpy())[0][1]
         
-        activation_output = net.prediction(input_folded.cuda())
-        softmax = F.softmax(activation_output)
-        result.append(softmax[:,labels].item())
+        corr_list.append(corr)
         
-    return result
-
-def aopc_batch(net, R, input, labels):
-    result = []
-    
-    with torch.no_grad():
-        net.eval()
-        input = input.clone().detach()
-
-        if args.model == 'Resnet50' or args.model == 'Densenet':
-            num_grid = 7
-        elif args.model == 'VGG19':
-            num_grid = 14
-        
-        # number of grids
-        ng = num_grid
-        # num_input
-        n = len(input)
-        # img resolution
-        li = input.shape[2]
-        # resolution of one grid
-        lg = li // ng
-        if R is None: # Random order perturbation
-            R_fl = np.array([np.arange(ng**2)]*10)
-            for i in R_fl:
-                np.random.shuffle(i)
-        else:
-            # 1. if interpreter == LRP, it resize R to be 14*14
-            if R.shape[2] != ng:
-                R = R.sum(dim=1, keepdim=True)
-                R = F.avg_pool2d(torch.tensor(R), (lg, lg))
-            R = R.cpu().detach().numpy()
-
-            # 2. we multiply -1 to R, because argsort is increasing order. (R_flatten)
-            R_fl = - R.reshape(R.shape[0],-1)
-
-        # first evaludation
-        activation_output = net.prediction(input)
-        
-        f_x0 = activation_output[np.arange(n),labels]
-
-        aopc_sum_K = 0
-        result.append(aopc_sum_K)
-
-
-        # 3. unfold. Because our R is N x ng^2, we match input to be N x ng^2 x lg x lg
-        input_unfolded = F.unfold(input, (lg, lg), stride=lg)
-        
-        # In the order of high scored R,
-        for index in R_fl.argsort()[:,:100].T:
-            # Insert gaussian noise into region having high R
-            input_unfolded[np.arange(n), :, index] = torch.tensor(np.random.normal(loc=0.0, scale=0.3, size=input_unfolded[np.arange(n), :, index].shape),dtype=torch.float32).cuda()
-
-            input_folded = F.fold(input_unfolded, input.shape[2:], (lg, lg), stride=lg)
-
-            activation_output = net.prediction(input_folded.cuda())
-            
-            f_xk = activation_output[np.arange(n),labels]
-            aopc_sum_K = aopc_sum_K + (f_x0 - f_xk).mean().item()
-
-            result.append(aopc_sum_K / (len(result)+1))
-
-    return result
-
-def aopc_one_image(net, R, input, labels, num_grid = (1,1,14,14)):
-    result = []
-    input = input.clone()
-    
-    # 1. if interpreter == LRP, it resize R to be 14*14
-    grid_size = input.shape[2] // num_grid[2]
-    if R.shape[2] != num_grid[2]:
-        R = R.sum(dim=1, keepdim=True)
-        R = F.avg_pool2d(torch.tensor(R), (grid_size, grid_size))
-    R = R.cpu().detach().numpy()
-        
-    # 2. we multiply -1 to R, because argsort is increasing order.
-    R_fl = - R.flatten()
-    
-    # first evaludation
-    activation_output = net.prediction(input)
-    prediction = torch.argmax(activation_output, 1)
-#     c0 = (prediction == labels).float().squeeze()
-    a0 = activation_output[:,labels]
-    
-    aopc_sum_K = 0
-    result.append(aopc_sum_K)
-
-    
-    # 3. unfold
-    input_unfolded = F.unfold(input, (grid_size, grid_size), stride=grid_size)
-    
-    for index in R_fl.argsort()[:100]:
-        # gaussian
-        input_unfolded[:,:,index] = torch.tensor(np.random.normal(loc=0.0, scale=0.3, size=input_unfolded[:,:,index].shape),dtype=torch.float32).cuda()
-        input_folded = F.fold(input_unfolded, input.shape[2:], (grid_size, grid_size), stride=grid_size)
-        
-        activation_output = net.prediction(input_folded.cuda())
-        prediction = torch.argmax(activation_output, 1)
-
-#         c = (prediction == labels).float().squeeze()
-        a = activation_output[:,labels] 
-        aopc_sum_K = aopc_sum_K + (a0 - a.item())
-        
-        result.append(aopc_sum_K / (len(result)+1))
-        
-    return result
-   
-
-
-def get_aopc(net, test_loader, interpreter):
-    with torch.no_grad():
-        test_acc=0
-        result = []
-        torch.manual_seed(7)
-        torch.cuda.manual_seed_all(7)
-        for j, data in enumerate(test_loader):
-
-            if j % 5 == 0:
-                print(j)
-            inputs, labels = data
-            if args.cuda:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
-
-            activation_output = net.prediction(inputs)
-            if interpreter == 'grad_cam':
-                R = net.grad_cam(activation_output, labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'lrp':
-                R = net.lrp(activation_output, 0, labels=labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'simple_grad':
-                R = net.simple_grad(activation_output, labels,  target_layer= args.lrp_target_layer).detach().clone()
-
-
-            result.append(aopc_batch(net, R, inputs, labels))
-
-    #         if len(R.shape) != 4:
-    #             R = R.unsqueeze(1)
-    #         R = R.sum(dim=1, keepdim=True)   
-
-            if j == 199:
-                break
-
-
-    return np.array(result).mean(axis=0)
-
-
-def get_aopc2(net_ori, net_fool, test_loader, interpreter):
-    with torch.no_grad():
-        net_ori.eval()
-        net_ori.eval()
-        
-        result_ori_with_Rfool = []
-        result_ori_with_Rori = []
-        result_ori_random = []
-        result_fool_with_Rfool = []
-        result_fool_with_Rori = []
-        result_fool_random = []
-        
-        torch.manual_seed(7)
-        torch.cuda.manual_seed_all(7)
-        for j, data in enumerate(test_loader):
-            if j % 10 == 0:
-                print(j)
-                
-            inputs, labels = data
-            if args.cuda:
-                inputs = inputs.cuda()
-                labels = labels.cuda()
-            
-            # 1. R of original model
-            activation_output = net_ori.prediction(inputs)
-            if interpreter == 'grad_cam':
-                R_ori = net_ori.grad_cam(activation_output, labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'lrp':
-                R_ori = net_ori.lrp(activation_output, 0, labels=labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'simple_grad':
-                R_ori = net_ori.simple_grad(activation_output, labels,  target_layer= args.lrp_target_layer).detach().clone()
-            
-            # 2. R of fooled model
-            activation_output = net_fool.prediction(inputs)
-            if interpreter == 'grad_cam':
-                R_fool = net_fool.grad_cam(activation_output, labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'lrp':
-                R_fool = net_fool.lrp(activation_output, 0, labels=labels, target_layer= args.lrp_target_layer).detach().clone()
-            elif interpreter == 'simple_grad':
-                R_fool = net_fool.simple_grad(activation_output, labels,  target_layer= args.lrp_target_layer).detach().clone()
-
-            result_ori_with_Rfool.append(aopc_batch(net_ori, R_fool, inputs, labels))
-            result_ori_with_Rori.append(aopc_batch(net_ori, R_ori, inputs, labels))
-            result_ori_random.append(aopc_batch(net_ori, None, inputs, labels))
-            
-            result_fool_with_Rfool.append(aopc_batch(net_fool, R_fool, inputs, labels))
-            result_fool_with_Rori.append(aopc_batch(net_fool, R_ori, inputs, labels))
-            result_fool_random.append(aopc_batch(net_fool, None, inputs, labels))
-
-            if j == 999:
-                break
-
-
-    return np.array(result_ori_with_Rfool).mean(axis=0), np.array(result_ori_with_Rori).mean(axis=0), np.array(result_ori_random).mean(axis=0), np.array(result_fool_with_Rfool).mean(axis=0), np.array(result_fool_with_Rori).mean(axis=0), np.array(result_fool_random).mean(axis=0), 
-
+    if keep_batch is True:
+        return corr_list
+    return np.mean(corr_list)
 
 
 def get_accuracy(output, labels, topk=(1,)):
@@ -333,8 +145,8 @@ def test_accuracy(net, test_loader, num_data = 50000, label = 0, get_quanti = No
                     LRP = net.interpretation(activation_output, interpreter=interpreter, target_layer = args.lrp_target_layer, labels=labels, inputs=inputs)
                     
                         
-                    if args.loss_type in ['frame']:
-                        loss_dict_sub[interpreter] += (net.frame(LRP, keep_batch = True).detach()).tolist()
+                    if args.loss_type in ['location']:
+                        loss_dict_sub[interpreter] += (net.location(LRP, keep_batch = True).detach()).tolist()
                         
                     else:
                         #get lrp_ori

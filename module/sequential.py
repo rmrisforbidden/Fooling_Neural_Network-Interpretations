@@ -128,7 +128,7 @@ class Sequential(Module):
         LRP = LRP/(LRP.max(dim=1)[0].max(dim=1)[0].max(dim=1)[0].reshape(-1,1,1,1) + 1e-8)
         return LRP
     
-    def frame(self, LRP, keep_batch=False):
+    def location(self, LRP, keep_batch=False):
         l = LRP.shape[2]
         n = LRP.shape[0]
         mask = torch.ones_like(LRP)
@@ -201,96 +201,61 @@ class Sequential(Module):
         distance = ((LRP_h - LRP_label_h).abs() + (LRP_w - LRP_label_w).abs()).mean()
         return -distance
     
-    def forward_targeted(self, input, lambda_dic, labels, lambda_for_final, class1_label, class2_label, target_layer = '34', r_targeted1 = None, r_targeted2 = None):
+    def forward_targeted(self, inputs, labels, net_ori, c1, c2, target_layer = None):
+        labels_c1 = labels + c1
+        labels_c2 = labels + c2
         
-        # classic forward
-        activation_output = input
-        for module in self._modules.values():
-            activation_output = module.forward(activation_output)
-        
-        # Class loss and score
-        _, prediction = torch.max(activation_output, 1)
-        
-        
-        class_loss = 0
-        
-        label = torch.zeros(len(activation_output), dtype=torch.long).cuda()
+        if args.interpreter == 'grad_cam':
+            activation_output = net_ori.prediction(inputs)
+            LRP_ori_c1 = net_ori.grad_cam(activation_output, labels_c1, target_layer)
+            LRP_ori_c2 = net_ori.grad_cam(activation_output, labels_c2, target_layer)
+            LRP_ori_c1 = LRP_ori_c1.clone().detach()
+            LRP_ori_c2 = LRP_ori_c2.clone().detach() 
 
-        class_loss = class_loss / len(prediction)
-        
-        
-        if args.loss_type == 'bitargeted':
-          
-            if args.interpreter == 'grad_cam':
-                LRP1 = self.grad_cam(activation_output, labels, target_layer)
-                LRP2 = self.grad_cam(activation_output, labels - args.class_to + args.class_from, target_layer)
+            activation_output = self.prediction(inputs)
+            LRP_c1 = self.grad_cam(activation_output, labels_c1, target_layer)
+            LRP_c2 = self.grad_cam(activation_output, labels_c2, target_layer)
+
+        if args.interpreter == 'lrp_T':
+            activation_output = net_ori.prediction(inputs)
+            LRP_ori_c1 = net_ori.lrp(activation_output, labels_c1, args.r_method, 1e-8, None, target_layer = target_layer)
+            LRP_ori_c2 = net_ori.lrp(activation_output, labels_c2, args.r_method, 1e-8, None, target_layer = target_layer)
+            LRP_ori_c1 = LRP_ori_c1.clone().detach()
+            LRP_ori_c2 = LRP_ori_c2.clone().detach() 
             
-            if args.interpreter == 'lrp':
-                LRP1 = self.lrp(activation_output, lambda_dic, None, labels , args.r_method, 1e-8, None, target_layer = args.lrp_target_layer)
-                LRP2 = self.lrp(activation_output, lambda_dic, None, labels - args.class_to + args.class_from, args.r_method, 1e-8, None, target_layer = args.lrp_target_layer)
-                
-            if args.interpreter == 'simple_grad':
-                LRP1 = self.simple_grad(activation_output, labels, args.lrp_target_layer)
-                LRP2 = self.simple_grad(activation_output, labels - args.class_to + args.class_from, args.lrp_target_layer)
+            activation_output = self.prediction(inputs)
+            LRP_c1 = self.lrp(activation_output, labels_c1, args.r_method, 1e-8, None, target_layer = target_layer)
+            LRP_c2 = self.lrp(activation_output, labels_c2, args.r_method, 1e-8, None, target_layer = target_layer)
 
-            if len(LRP1.shape) != 4:
-                LRP1.unsqueeze(1)
-            if len(LRP2.shape) != 4:
-                LRP2.unsqueeze(1)
+        if args.interpreter == 'simple_grad_T':
+            activation_output = net_ori.prediction(inputs)
+            LRP_ori_c1 = net_ori.simple_grad(activation_output, labels_c1, target_layer)
+            LRP_ori_c2 = net_ori.simple_grad(activation_output, labels_c2, target_layer)
+            LRP_ori_c1 = LRP_ori_c1.clone().detach()
+            LRP_ori_c2 = LRP_ori_c2.clone().detach() 
             
-            LRP1 = LRP1.sum(dim=1, keepdim=True)
-            LRP2 = LRP2.sum(dim=1, keepdim=True)
-            r_targeted1 = r_targeted1.sum(dim=1, keepdim=True)
-            r_targeted2 = r_targeted2.sum(dim=1, keepdim=True)  
-                
-            lrp_loss = (torch.nn.functional.mse_loss(LRP1.cuda(), r_targeted1) + torch.nn.functional.mse_loss(LRP2.cuda(), r_targeted2)) * (lambda_for_final/2)
-            total_loss = class_loss + lrp_loss
-            check_total_loss = total_loss
-            return total_loss, class_loss, lrp_loss, activation_output, check_total_loss, LRP1
-            
+            activation_output = self.prediction(inputs)
+            LRP_c1 = self.simple_grad(activation_output, labels_c1, target_layer)
+            LRP_c2 = self.simple_grad(activation_output, labels_c2, target_layer)
+
+        if len(LRP_c1.shape) != 4:
+            LRP_c1.unsqueeze(1)
+            LRP_c2.unsqueeze(1)
+            LRP_ori_c1.unsqueeze(1)
+            LRP_ori_c2.unsqueeze(1)
+
+        LRP_c1 = LRP_c1.sum(dim=1, keepdim=True)
+        LRP_c2 = LRP_c2.sum(dim=1, keepdim=True)
+        LRP_ori_c1 = LRP_ori_c1.sum(dim=1, keepdim=True)
+        LRP_ori_c2 = LRP_ori_c2.sum(dim=1, keepdim=True) 
+
+        lrp_loss = 0.5*(torch.nn.functional.mse_loss(LRP_c1, LRP_ori_c2) + torch.nn.functional.mse_loss(LRP_c2, LRP_ori_c1))
         
-        if args.no_lambda_for_each_layer == True:
-            
-            #181210 added
-            if args.interpreter == 'lrp':
-                # get LRP loss
-                if args.model in ['VGG19', 'Resnet18', 'Resnet34', 'Resnet50', 'Resnet101', 'Densenet121']:
-                    LRP = self.lrp(activation_output, lambda_dic, None, labels, args.r_method, 1e-8, None, target_layer = args.lrp_target_layer)
-                
-            else:
-                if args.model in ['VGG19', 'Resnet18', 'Resnet34', 'Resnet50', 'Resnet101', 'Densenet121']:
-                    LRP = self.grad_cam(activation_output, labels, target_layer)
-                
-            
-                
-            if len(LRP.shape) != 4:
-                LRP.unsqueeze(1)
-            #190106 train with entropy of R (n, 1, 224,224), not (n, 3, 224,224)
-            LRP = LRP.sum(dim=1, keepdim=True)
-            r_targeted1 = r_targeted1.sum(dim=1, keepdim=True)
-            if args.loss_type == 'targeted':
+        return lrp_loss
 
-                #LRP = self.normalize(LRP)
-                #r_targeted1 = self.normalize(r_targeted1)
-                lrp_loss = torch.nn.functional.mse_loss(LRP.cuda(), r_targeted1) * lambda_for_final
-              
-                
-
-            #self.lrp_loss = torch.div(torch.sum( torch.abs(LRP) ), args.img_size)
-
-            # get total loss
-
-            total_loss = class_loss + lrp_loss
-            check_total_loss = total_loss
-            #self.total_loss =  (lambda_for_final * self.lrp_loss)
-
-        return total_loss, class_loss, lrp_loss, activation_output, check_total_loss, LRP
-    
     
     def forward_classic(self, input, labels):
-        activation_output = input
-        for module in self._modules.values():
-            activation_output = module.forward(activation_output)
+        activation_output = self.prediction(input)
         
         # Class loss and score
         _, prediction = torch.max(activation_output, 1)
@@ -302,10 +267,7 @@ class Sequential(Module):
         return class_loss
     
     def forward(self, inputs, labels, lambda_value, target_layer = None, LRP_ori=None):
-        # classic forward
-        activation_output = inputs
-        for module in self._modules.values():
-            activation_output = module.forward(activation_output)
+        activation_output = self.prediction(inputs)
         
         # Class loss and score
         _, prediction = torch.max(activation_output, 1)
@@ -320,10 +282,9 @@ class Sequential(Module):
             LRP = LRP.unsqueeze(1)
         LRP = LRP.sum(dim=1, keepdim=True)
         
-        
         # Calculate loss
-        if args.loss_type == 'frame':
-            lrp_loss = self.frame(LRP)
+        if args.loss_type == 'location':
+            lrp_loss = self.location(LRP)
         elif args.loss_type == 'topk':
             lrp_loss = self.topk(LRP, LRP_ori)
         elif args.loss_type == 'center_mass':

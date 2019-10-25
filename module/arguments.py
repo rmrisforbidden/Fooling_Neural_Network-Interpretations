@@ -22,7 +22,7 @@ def get_args():
                         choices=['lrp', 'lrp_T', 'grad_cam', 'simple_grad', 'simple_grad_T', 'smooth_grad', 'smooth_grad_T', 'integrated_grad', 'integrated_grad_T'], 
                         help='The interpreter for fooling loss')
 
-    parser.add_argument('--loss_type', type=str, default='uniformR', choices=['frame', 'topk', 'center_mass'], 
+    parser.add_argument('--loss_type', type=str, default='uniformR', choices=['location', 'topk', 'center_mass', 'active'], 
                         help='The type of fooling loss')
     
     parser.add_argument('--batch-size', type=int, default=8,
@@ -105,30 +105,21 @@ def get_args():
     parser.add_argument('--epochs', type=int, default=5,
                         help='Number of epoch. Warning: The number of iteration will be args.num_eval * args.eval_period.')
     
-
-    
-
-    
-    
-    #### 4. Visualization ####
     parser.add_argument('--random_seed', type=int, default=20,
                         help='random seed for visualization')
     
-    
-    #### 5. Active fooling ####
     parser.add_argument('--heatmap_label', type=int, default=0,
                         help='the class label that you want to get heatmap')
-    parser.add_argument('--class_from', type=int, default=555,
+    parser.add_argument('--class_c1', type=int, default=555,
                         help='label of mixed data 1')
-    parser.add_argument('--class_to', type=int, default=386,
+    parser.add_argument('--class_c2', type=int, default=386,
                         help='label of mixed data 2')
     
-    #### 6. Evaluation ####
-    parser.add_argument('--from_accuracy', action='store_true', default=False,
+    parser.add_argument('--c1_c2_accuracy', action='store_true', default=False,
+                        help='if you want to get c1_acc when targeted ')
+    parser.add_argument('--get_correlation', action='store_true', default=False,
                         help='if you want to get from_acc when targeted ')
-    parser.add_argument('--to_accuracy', action='store_true', default=False,
-                        help='if you want to get to_acc when targeted ')
-
+    
     
     args = parser.parse_args()
 
