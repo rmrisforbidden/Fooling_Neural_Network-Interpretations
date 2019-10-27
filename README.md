@@ -78,7 +78,7 @@ This shell script has higher FSR and faster run time than the result in our pape
 cd run_lrp
 bash passive_fooling_demo.sh
 ```
-The following scripts contain hyperparameters we has used so far.
+The following scripts contain hyperparameters we have used so far.
 ```
 cd run_lrp
 bash passive_fooling.sh
@@ -93,9 +93,18 @@ bash active_fooling.sh
 ## Reference
 
 [1] Bach, Sebastian, et al. "On pixel-wise explanations for non-linear classifier decisions by layer-wise relevance propagation." PloS one 10.7 (2015): e0130140.
+
 [2] Selvaraju, Ramprasaath R., et al. "Grad-cam: Visual explanations from deep networks via gradient-based localization." Proceedings of the IEEE International Conference on Computer Vision. 2017.
+
 [3] Simonyan, Karen, Andrea Vedaldi, and Andrew Zisserman. "Deep inside convolutional networks: Visualising image classification models and saliency maps." arXiv preprint arXiv:1312.6034 (2013).
+
 [4] Sundararajan, Mukund, Ankur Taly, and Qiqi Yan. "Axiomatic attribution for deep networks." Proceedings of the 34th International Conference on Machine Learning-Volume 70. JMLR. org, 2017.
+
 [5] Smilkov, Daniel, et al. "Smoothgrad: removing noise by adding noise." arXiv preprint arXiv:1706.03825 (2017).
 
 ## Referenced codes
+* Modules: Our modules, such as Conv, ReLU, ..., are based on `pytorch.nn`.
+* Models: Our models are based on [torchvision](https://pytorch.org/docs/stable/torchvision/index.html)
+* Interpretation
+    * LRP: Our LRP module is from [this repository](https://github.com/sebastian-lapuschkin/lrp_toolbox)
+    * LRP We have referenced `innvestigate` for LRP forward implementation [this repository]https://github.com/albermax/innvestigate
