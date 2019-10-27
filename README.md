@@ -1,6 +1,6 @@
 # Fooling Neural Network Interpretations via Adversarial Model Manipulation
 
-<p align="center"><img width="40%" src="Materials/Intro.jpg" /></p>
+<p align="center"><img width="40%" src="Materials/Intro1.jpg" /></p>
 
 This repository provides a PyTorch implementation of "Fooling Neural Network Interpretations via Adversarial Model Manipulation" [Paper](https://arxiv.org/abs/1902.02041).
 --------------------------------------------------------------------------------
