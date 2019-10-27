@@ -107,4 +107,4 @@ bash active_fooling.sh
 * Models: Our models are based on [torchvision](https://pytorch.org/docs/stable/torchvision/index.html)
 * Interpretation
     * LRP: Our LRP module is from [this repository](https://github.com/sebastian-lapuschkin/lrp_toolbox)
-    * LRP We have referenced `innvestigate` for LRP forward implementation [this repository]https://github.com/albermax/innvestigate
+    * LRP We have referenced [innvestigate](https://github.com/albermax/innvestigate) for LRP forward implementation.
