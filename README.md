@@ -6,8 +6,12 @@
 This repository provides a PyTorch implementation of "Fooling Neural Network Interpretations via Adversarial Model Manipulation" [Paper](https://arxiv.org/abs/1902.02041).
 
 
-## Abstract
-We ask whether the neural network interpretation methods can be fooled via adversarial model manipulation, which is defined as a model fine-tuning step that aims to radically alter the explanations without hurting the accuracy of the original models, e.g., VGG19, ResNet50, and DenseNet121. By incorporating the interpretation results directly in the penalty term of the objective function for fine-tuning, we show that the state-of-the-art saliency map based interpreters, e.g., LRP, Grad-CAM, and SimpleGrad, can be easily fooled with our model manipulation. We propose two types of fooling, Passive and Active, and demonstrate such foolings generalize well to the entire validation set as well as transfer to other interpretation methods. Our results are validated by both visually showing the fooled explanations and reporting quantitative metrics that measure the deviations from the original explanations.  We claim that the stability of neural network interpretation method with respect to our adversarial model manipulation is an important criterion to check for developing robust and reliable neural network interpretation method. 
+## Materials
+
+* [Paper](https://arxiv.org/abs/1902.02041)
+* [PPT](Materials/PPT.pdf)
+* [3-min Video](Materials/Video.md)
+* [Poster](Materials/Poster.pdf)
 
 ## Dependencies
 
@@ -18,36 +22,80 @@ We ask whether the neural network interpretation methods can be fooled via adver
 
 * Dataset: ImageNet
 * Model: VGG, ResNet, DenseNet
-* Interpretation methods: LRP, Grad-CAM, Simple Gradient, Smoooth Gradient, Integrated Gradient.
+* Interpretation methods: LRP[1], Grad-CAM[2], Simple Gradient[3], Integrated Gradient [4], Smoooth Gradient [5]
 * Foolings: Location, Top-$k$, Center-mass, Active Fooling
 
 
 ## Usage
 
-### 1. Downloading ImageNet Dataset.
-'''
-TBU
-'''
+### 1. Preparing ImageNet ILSVRC 2012 Dataset.
+If you does not have ImageNet dataset, execute the followings sequentially in your terminal. Before download, make sure that your system has more than 140GB. If you already have ImageNet dataset in your system, go to 1.4.
+#### 1.1. Downloading
+```
+mkdir ~/Data
+cd Data
+wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train.tar
+wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_val.tar
+mkdir image
+mv ILSVRC2012_img_train.tar image
+mv ILSVRC2012_img_val.tar image
+cd image
+```
+#### 1.2. Unzip train dataset 
+```
+mkdir train
+mv ILSVRC2012_img_train.tar train
+cd train
+tar xf ILSVRC2012_img_train.tar
+find . -name "*.tar" | while read NAME ; do mkdir -p "${NAME%.tar}"; tar -xvf "${NAME}" -C "${NAME%.tar}"; rm -f "${NAME}"; done
+```
+#### 1.3. Unzip validation dataset 
+```
+cd ..
+mkdir val
+mv ILSVRC2012_img_train.val val
+cd val
+tar xf ILSVRC2012_img_val.tar
+```
+#### 1.4. Changing the path of dataloader
+In `module/dataloader.py`, change the `train_dir` and `val_dir` path to be your ImageNet directory.
+```
+def dataloader(args, train=False, val=False, test=False):
+    if train+val+test != 1:
+        print('Only one of the loader should be True')
+        print(ERROR)
+        
+    # Change it to your ImageNet directory
+    train_dir = './../../../Interpretable/Data/ImageNet/Data/train'
+    val_dir = './../../../Interpretable/Data/ImageNet/Data/val'
+```
 
 
-
-### 2. Quick start
-'''
+### 2. Fooling pretrained models
+#### 2.1. Demo
+This shell script has higher FSR and faster run time than the result in our paper, but accuracy drops more. 
+```
+cd run_lrp
+bash passive_fooling_demo.sh
+```
+The following scripts contain hyperparameters we has used so far.
+```
 cd run_lrp
 bash passive_fooling.sh
 bash active_fooling.sh
-'''
+```
 
 
 
 
-## Materials
 
-* [Paper](https://arxiv.org/abs/1902.02041)
-* [PPT](Materials/PPT.pdf)
-* [3-min Video](Materials/Video.md)
-* [Poster](Materials/Poster.pdf)
 
 ## Reference
 
-* TBU
+[1] Bach, Sebastian, et al. "On pixel-wise explanations for non-linear classifier decisions by layer-wise relevance propagation." PloS one 10.7 (2015): e0130140.
+[2] Selvaraju, Ramprasaath R., et al. "Grad-cam: Visual explanations from deep networks via gradient-based localization." Proceedings of the IEEE International Conference on Computer Vision. 2017.
+[3] Simonyan, Karen, Andrea Vedaldi, and Andrew Zisserman. "Deep inside convolutional networks: Visualising image classification models and saliency maps." arXiv preprint arXiv:1312.6034 (2013).
+[4] Sundararajan, Mukund, Ankur Taly, and Qiqi Yan. "Axiomatic attribution for deep networks." Proceedings of the 34th International Conference on Machine Learning-Volume 70. JMLR. org, 2017.
+[5] Smilkov, Daniel, et al. "Smoothgrad: removing noise by adding noise." arXiv preprint arXiv:1706.03825 (2017).
+
+## Referenced codes
