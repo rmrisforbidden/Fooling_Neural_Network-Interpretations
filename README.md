@@ -106,5 +106,5 @@ bash active_fooling.sh
 * Modules: Our modules, such as Conv, ReLU, ..., are based on `pytorch.nn`.
 * Models: Our models are based on [torchvision](https://pytorch.org/docs/stable/torchvision/index.html)
 * Interpretation
-    * LRP: Our LRP module is from [this repository](https://github.com/sebastian-lapuschkin/lrp_toolbox)
+    * LRP: We have referenced [lrp_toolbox](https://github.com/sebastian-lapuschkin/lrp_toolbox) for overall frame of our LRP.
     * LRP We have referenced [innvestigate](https://github.com/albermax/innvestigate) for LRP forward implementation.
