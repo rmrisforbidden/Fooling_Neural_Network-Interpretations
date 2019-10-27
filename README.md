@@ -29,7 +29,7 @@ This repository provides a PyTorch implementation of "Fooling Neural Network Int
 ## Usage
 
 ### 1. Preparing ImageNet ILSVRC 2012 Dataset.
-If you does not have ImageNet dataset, execute the followings sequentially in your terminal. Before download, make sure that your system has more than 140GB. If you already have ImageNet dataset in your system, go to 1.4.
+If you do not have the ImageNet dataset, execute the followings sequentially in your terminal. Before downloading, make sure that your system has more than 140GB. If you already have the ImageNet dataset in your system, go to 1.4.
 #### 1.1. Downloading
 ```
 mkdir ~/Data
