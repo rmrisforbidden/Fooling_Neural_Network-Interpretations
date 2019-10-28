@@ -1,4 +1,4 @@
-# Fooling Neural Network Interpretations via Adversarial Model Manipulation
+# Fooling Neural Network Interpretations via Adversarial Model Manipulation (NeurIPS 2019)
 
 <p align="center"><img width="60%" src="Materials/Intro1.jpg" /></p>
 
@@ -29,13 +29,13 @@ This repository provides a PyTorch implementation of "Fooling Neural Network Int
 ## Usage
 
 ### 1. Preparing ImageNet ILSVRC 2012 Dataset.
-If you do not have the ImageNet dataset, execute the followings sequentially in your terminal. Before downloading, make sure that your system has more than 140GB. If you already have the ImageNet dataset in your system, go to 1.4.
+If you do not have the ImageNet dataset, execute the followings sequentially in your terminal. Before downloading, make sure that your system has more than 150GB. If you already have the ImageNet dataset in your system, go to 1.4.
 #### 1.1. Downloading
 ```
 mkdir ~/Data
 cd Data
-wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train.tar
-wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_val.tar
+wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train.tar # Currently this code does not work, because the ImageNet server is under maintenance. (29 Oct, 2019)
+wget http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_val.tar # same as above
 mkdir image
 mv ILSVRC2012_img_train.tar image
 mv ILSVRC2012_img_val.tar image
