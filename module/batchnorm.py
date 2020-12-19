@@ -96,7 +96,7 @@ class _BatchNorm(Module):
         n = N*W*H
         grad_output = grad_output.transpose(0,1).reshape(C, -1)
         if self.training is not True:
-            dX = grad_output*self.weight.reshape(-1,1)/(self.running_var.reshape(-1,1)+1e-8)
+            dX = grad_output*self.weight.reshape(-1,1)/torch.sqrt(self.running_var.reshape(-1,1)+1e-8)
         else:
             X_mu = X - mu
             std_inv = 1. / torch.sqrt(var + self.eps)
